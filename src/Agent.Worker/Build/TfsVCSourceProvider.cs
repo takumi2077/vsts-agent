@@ -126,54 +126,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     sourcesDirectory: sourcesDirectory);
                 if (existingTFWorkspace != null)
                 {
-                    if (tf.Features.HasFlag(TfsVCFeatures.GetFromUnmappedRoot))
-                    {
-                        // Undo pending changes.
-                        ITfsVCStatus tfStatus = await tf.StatusAsync(localPath: sourcesDirectory);
-                        if (tfStatus?.HasPendingChanges ?? false)
-                        {
-                            await tf.UndoAsync(localPath: sourcesDirectory);
-
-                            // Cleanup remaining files/directories from pend adds.
-                            tfStatus.AllAdds
-                                .OrderByDescending(x => x.LocalItem) // Sort descending so nested items are deleted before their parent is deleted.
-                                .ToList()
-                                .ForEach(x =>
-                                {
-                                    executionContext.Output(StringUtil.Loc("Deleting", x.LocalItem));
-                                    IOUtil.Delete(x.LocalItem, cancellationToken);
-                                });
-                        }
-                    }
-                    else
-                    {
-                        // Perform "undo" for each map.
-                        foreach (DefinitionWorkspaceMapping definitionMapping in definitionMappings ?? new DefinitionWorkspaceMapping[0])
-                        {
-                            if (definitionMapping.MappingType == DefinitionMappingType.Map)
-                            {
-                                // Check the status.
-                                string localPath = definitionMapping.GetRootedLocalPath(sourcesDirectory);
-                                ITfsVCStatus tfStatus = await tf.StatusAsync(localPath: localPath);
-                                if (tfStatus?.HasPendingChanges ?? false)
-                                {
-                                    // Undo.
-                                    await tf.UndoAsync(localPath: localPath);
-
-                                    // Cleanup remaining files/directories from pend adds.
-                                    tfStatus.AllAdds
-                                        .OrderByDescending(x => x.LocalItem) // Sort descending so nested items are deleted before their parent is deleted.
-                                        .ToList()
-                                        .ForEach(x =>
-                                        {
-                                            executionContext.Output(StringUtil.Loc("Deleting", x.LocalItem));
-                                            IOUtil.Delete(x.LocalItem, cancellationToken);
-                                        });
-                                }
-                            }
-                        }
-                    }
-
                     // Scorch.
                     if (clean)
                     {
